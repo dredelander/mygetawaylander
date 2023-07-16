@@ -4,6 +4,8 @@
 <h2 align="center">My Get Away Lander!</h2>
 </div>
 
+<div align ="center">
+
   <p align="center">
     Are you planning a vacations? Tell us where you want to go and we will find you the best deals.
     Choose from the destinations offered, enter you details and get ready to pick from many great travel offers.
@@ -19,8 +21,15 @@
     </ol>
     </details>
     <br />
-
-    <a href="https://github.com/github_username/repo_name">Go to the site</a>
+    
     
   </p>
 </div>
+
+<div align="center">
+<p>
+
+    <a href="https://github.com/github_username/repo_name">Go to the site</a>
+    </p>
+</div>
+
