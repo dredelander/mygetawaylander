@@ -2,6 +2,7 @@
 <div align="center">
 
 <h2 align="center">My Get Away Lander!</h2>
+</div>
 
   <p align="center">
     Are you planning a vacations? Tell us where you want to go and we will find you the best deals.
@@ -10,11 +11,9 @@
     </p>
     <details>
     <summary>Project Technical Features</summary>
-    
-    <br />
-    <ol>
+     <ol>
     <li>Custom logging to file service using dependecy injection</li>
-    <li> CRUD RestApi using Entity Framework. </li>
+    <li>CRUD RestApi using Entity Framework.</li>
     <li>MVC Frontend deployed to Azure platform.</li>
     <li>PostGres Database connection.</li>
     </ol>
