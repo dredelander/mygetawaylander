@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Net;
 using AutoMapper;
 using cr2Project.Data;
 using cr2Project.Models;
@@ -16,7 +17,7 @@ namespace cr2Project.Controllers
 	{
         public ILogger<TripAPIController> _logger { get; }
         private readonly IMapper _mapper;
-        //private readonly ApplicationDBContext _db;
+        protected APIResponse _response;
         private readonly ITripRepository _dbTrip;
 
         public TripAPIController(ITripRepository dbTrip, ILogger<TripAPIController> logger, IMapper mapper)
@@ -24,16 +25,30 @@ namespace cr2Project.Controllers
             _dbTrip = dbTrip;
             _logger = logger;
             _mapper = mapper;
+            this._response = new();
         }
 
         // GET ALL THE TRIPS - RETURN TYPE AS THE NORMAL DTO, MAPPED WITH AUTOMAPPER
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<TripDTO>>> GetTrips()
+        public async Task<ActionResult<APIResponse>> GetTrips()
         {
             _logger.LogInformation("Getting all trips");
-            //IEnumerable<Trip> tripList = await _db.Trips.ToListAsync();
-            IEnumerable<Trip> tripList = await _dbTrip.GetAll();
-            return Ok(_mapper.Map<List<TripDTO>>(tripList));
+            try
+            {
+
+
+                IEnumerable<Trip> tripList = await _dbTrip.GetAll();
+                _response.Response = _mapper.Map<List<TripDTO>>(tripList);
+                _response.StatusCode = HttpStatusCode.OK;
+
+                return Ok(_response);
+            } catch (Exception ex)
+            {
+                _response.IsSuccess = false;
+                _response.ErrorMessages = new List<string>() { ex.ToString() };
+                return _response;
+            }
+
         }
 
         // GET A SINGLE TRIP BY ID
@@ -41,23 +56,37 @@ namespace cr2Project.Controllers
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<TripDTO>> GetTripById(int id)
+        public async Task<ActionResult<APIResponse>> GetTripById(int id)
         {
-            if (id == 0)
+            try
             {
-                _logger.LogError("Get Trip Error" + id);
-                return BadRequest();
-            }
-            //var trip = await _db.Trips.FirstOrDefaultAsync(d => d.Id == id);
-            var trip = await _dbTrip.Get(d => d.Id == id);
+                if (id == 0)
+                {
+                    _logger.LogError("Get Trip Error" + id);
+                    _response.StatusCode = HttpStatusCode.BadRequest;
+                    return BadRequest(_response);
+                }
 
-            if (trip == null)
+                var trip = await _dbTrip.Get(d => d.Id == id);
+
+                if (trip == null)
+                {
+                    _response.StatusCode = HttpStatusCode.NotFound;
+                    return NotFound(_response);
+                }
+
+                _response.Response = _mapper.Map<TripDTO>(trip);
+                _response.StatusCode = HttpStatusCode.OK;
+
+                return Ok(_response);
+            }
+            catch (Exception ex)
             {
-                return NotFound();
+                _response.IsSuccess = false;
+                _response.ErrorMessages = new List<string>() { ex.ToString() };
+                return _response;
             }
 
-
-            return Ok(_mapper.Map<TripDTO>(trip));
         }
 
 
@@ -67,31 +96,39 @@ namespace cr2Project.Controllers
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult<TripDTO>> AddTrip([FromBody] TripCreateDTO createDTO)
+        public async Task<ActionResult<APIResponse>> AddTrip([FromBody] TripCreateDTO createDTO)
         {
-            if (createDTO == null)
+            try
             {
-                return BadRequest(createDTO);
+                if (createDTO == null)
+                {
+                    _response.StatusCode = HttpStatusCode.BadRequest;
+                    
+                    return BadRequest(_response);
+                }
+
+                var check = await _dbTrip.Get(d => d.Nickname.ToLower() == createDTO.Nickname.ToLower());
+
+                if (check != default)
+                {
+                    ModelState.AddModelError("Custom Error", "Trip Name already exists");
+                    return BadRequest(ModelState);
+                }
+
+                var model = _mapper.Map<Trip>(createDTO);
+
+                await _dbTrip.Create(model);
+                _response.Response = _mapper.Map<TripDTO>(model);
+                _response.StatusCode = HttpStatusCode.Created;
+
+                return CreatedAtRoute("GetTrip", new { id = model.Id }, _response);
             }
-
-            var check = await _dbTrip.Get(d => d.Nickname.ToLower() == createDTO.Nickname.ToLower());
-
-            if (check != default)
+            catch (Exception ex)
             {
-                ModelState.AddModelError("Custom Error", "Trip Name already exists");
-                return BadRequest(ModelState);
+                _response.IsSuccess = false;
+                _response.ErrorMessages = new List<string>() { ex.ToString() };
+                return _response;
             }
-
-
-            var model = _mapper.Map<Trip>(createDTO);
-
-
-            //_db.Trips.AddAsync(model);
-            //_db.SaveChangesAsync();
-
-            await _dbTrip.Create(model);
-
-            return CreatedAtRoute("Gettrips", new { id = model.Id }, model);
         }
 
         // DELETE A TRIP
@@ -99,40 +136,63 @@ namespace cr2Project.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
-        public async Task<IActionResult> DeleteTrip(int id)
+        public async Task<ActionResult<APIResponse>> DeleteTrip(int id)
         {
-            if (id == 0)
+            try
             {
-                return BadRequest();
-            }
-            var trip = await _dbTrip.Get(d => d.Id == id);
-            if (trip == null)
-            {
-                return NotFound();
-            }
+                if (id == 0)
+                {
+                    return BadRequest();
+                }
+                var trip = await _dbTrip.Get(d => d.Id == id);
+                if (trip == null)
+                {
+                    return NotFound();
+                }
 
-            await _dbTrip.Remove(trip);
-            
-            return NoContent();
+                await _dbTrip.Remove(trip);
+
+                _response.StatusCode = HttpStatusCode.NoContent;
+                _response.IsSuccess = true;
+
+                return Ok(_response);
+            }
+            catch (Exception ex)
+            {
+                _response.IsSuccess = false;
+                _response.ErrorMessages = new List<string>() { ex.ToString() };
+                return _response;
+            }
         }
 
         // UPDATE A TRIP - FULL UPDATE(NOT A PATCH)
         [HttpPut("{id:int}", Name = "UpdateTrip")]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
-        public async Task<IActionResult> UpdateTrip(int id, [FromBody] TripUpdateDTO updateDTO)
+        public async Task<ActionResult<APIResponse>> UpdateTrip(int id, [FromBody] TripUpdateDTO updateDTO)
         {
-            if (updateDTO == null || id != updateDTO.Id)
+            try
             {
-                return BadRequest();
+                if (updateDTO == null || id != updateDTO.Id)
+                {
+                    return BadRequest();
+                }
+
+
+                var model = _mapper.Map<Trip>(updateDTO);
+
+                await _dbTrip.Update(model);
+
+                _response.StatusCode = HttpStatusCode.NoContent;
+                _response.IsSuccess = true;
+
+                return Ok(_response);
+            } catch (Exception ex)
+            {
+                _response.IsSuccess = false;
+                _response.ErrorMessages = new List<string>() { ex.ToString() };
+                return _response;
             }
-
-
-            var model = _mapper.Map<Trip>(updateDTO);
-
-            await _dbTrip.Update(model);
-
-            return NoContent();
         }
 
         // PATCH (PARTIAL UPDATE) OF A TRIP
