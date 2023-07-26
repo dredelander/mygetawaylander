@@ -12,7 +12,7 @@ namespace cr2Project.Models.Dto
         public int NumberOfGuest { get; set; }
 
         //public int NumberOfDestinations { get; set; }
-        //public ICollection<Destination>? Destinations { get; set; }
+        public ICollection<Destination>? Destinations { get; set; }
 
         public DateTime CreatedDate { get;}
 

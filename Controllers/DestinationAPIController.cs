@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics.Metrics;
+using System.Net;
 using AutoMapper;
 using cr2Project.Data;
 using cr2Project.Models;
@@ -20,6 +21,7 @@ namespace cr2Project.Controllers
 	{
         public ILogger<DestinationAPIController> _logger { get; }
 		private readonly ApplicationDBContext _db;
+		protected APIResponse _response;
 		private readonly IMapper _mapper;
         private readonly IDestinationRepository _dbDestination;
 
@@ -29,18 +31,30 @@ namespace cr2Project.Controllers
             _logger = logger;
 			_mapper = mapper;
 			_dbDestination = dbDestination;
+			_response = new();
         }
 
 		// GET ALL THE DESTINATIONS - RETURN TYPE AS DTO, MAPPED WITH AUTOMAPPER
         [HttpGet]
-		public async Task<ActionResult<IEnumerable<DestinationDTO>>> GetDestinations()
+		public async Task<ActionResult<APIResponse>> GetDestinations()
 		{
 			_logger.LogInformation("Getting all destinations");
 
-			//IEnumerable<Destination> destinationList = await _db.Destinations.ToListAsync();
-			IEnumerable<Destination> destinationList = await _dbDestination.GetAll();
+			try
+			{
+				IEnumerable<Destination> destinationList = await _dbDestination.GetAll();
 
-            return Ok(_mapper.Map<List<DestinationDTO>>(destinationList));
+				_response.Response = _mapper.Map<List<DestinationDTO>>(destinationList);
+				_response.StatusCode = HttpStatusCode.OK;
+
+				return Ok(_response);
+			} catch(Exception ex)
+			{
+				_response.IsSuccess = false;
+				_response.ErrorMessages = new List<string>() { ex.ToString() };
+				return _response;
+			}
+
 		}
 
 		// GET A SINGLE DESTINATION BY ID
@@ -48,23 +62,37 @@ namespace cr2Project.Controllers
 		[ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult <DestinationDTO>> GetDestinationById(int id)
+        public async Task<ActionResult <APIResponse>> GetDestinationById(int id)
         {
-			if(id == 0)
+			try
 			{
-				_logger.LogError("Get Destination Error" + id);
-				return BadRequest();
-			}
-            //var destination = await _db.Destinations.FirstOrDefaultAsync(d => d.Id == id);
-            var destination = await _dbDestination.Get(d => d.Id == id);
+				if (id == 0)
+				{
+					_logger.LogError("Get Destination Error" + id);
+					_response.IsSuccess = false;
+                    _response.StatusCode = HttpStatusCode.BadRequest;
+                    return BadRequest(_response);
+                    
+				}
+				var destination = await _dbDestination.Get(d => d.Id == id);
 
-            if (destination == null)
-			{
-				return NotFound();
-			}
+				if (destination == null)
+				{
+                    _response.StatusCode = HttpStatusCode.NotFound;
+                    return NotFound(_response);
+                }
+                _response.Response = _mapper.Map<DestinationDTO>(destination);
+                _response.StatusCode = HttpStatusCode.OK;
 
-			
-            return Ok(_mapper.Map<DestinationDTO>(destination));
+                return Ok(_response);
+            }
+            catch (Exception ex)
+            {
+                _response.IsSuccess = false;
+                _response.ErrorMessages = new List<string>() { ex.ToString() };
+                return _response;
+            }
+
         }
 
 		// CREATE/ADD A DESTINATION
@@ -73,30 +101,41 @@ namespace cr2Project.Controllers
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult<DestinationDTO>> AddDestination([FromBody]DestinationCreateDTO createDTO)
+        public async Task<ActionResult<APIResponse>> AddDestination([FromBody]DestinationCreateDTO createDTO)
 		{
-			if(createDTO == null)
+			try
 			{
-				return BadRequest(createDTO);
+				if (createDTO == null)
+				{
+                    _response.StatusCode = HttpStatusCode.BadRequest;
+
+                    return BadRequest(_response);
+                }
+
+				var check = await _dbDestination.Get(d => d.Name.ToLower() == createDTO.Name.ToLower());
+
+				if (check != default)
+				{
+					ModelState.AddModelError("Custom Error", "Destination Name already exists");
+					return BadRequest(ModelState);
+				}
+
+				var model = _mapper.Map<Destination>(createDTO);
+
+
+				await _dbDestination.Create(model);
+                _response.Response = _mapper.Map<DestinationDTO>(model);
+                _response.StatusCode = HttpStatusCode.Created;
+
+                return CreatedAtRoute("GetDestination", new { id = model.Id }, _response);
 			}
-
-			//var check = await _db.Destinations.FirstOrDefaultAsync(d => d.Name.ToLower() == createDTO.Name.ToLower());
-            var check = await _dbDestination.Get(d => d.Name.ToLower() == createDTO.Name.ToLower());
-
-            if ( check != default)
-			{
-				ModelState.AddModelError("Custom Error", "Destination Name already exists");
-				return BadRequest(ModelState);
-			}
-
-			var model = _mapper.Map<Destination>(createDTO);
-			
-
-			await _dbDestination.Create(model);
-			
-
-			return CreatedAtRoute("GetDestination",new { id = model.Id }, model);
-		}
+            catch (Exception ex)
+            {
+                _response.IsSuccess = false;
+                _response.ErrorMessages = new List<string>() { ex.ToString() };
+                return _response;
+            }
+        }
 
 
 		// DELETE A DESTINATION
@@ -104,42 +143,68 @@ namespace cr2Project.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
-        public async Task<IActionResult> DeleteDestination(int id)
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        public async Task<ActionResult<APIResponse>> DeleteDestination(int id)
 		{
-			if(id == 0)
+			try
 			{
-				return BadRequest();
-			}
-			var destination = await _dbDestination.Get(d => d.Id == id);
-			if(destination == null)
-			{
-				return NotFound();
-			}
+				if (id == 0)
+				{
+                    _response.StatusCode = HttpStatusCode.BadRequest;
 
-			await _dbDestination.Remove(destination);
-			
-			return NoContent();
-		}
+                    return BadRequest(_response);
+                }
+				var destination = await _dbDestination.Get(d => d.Id == id);
+				if (destination == null)
+				{
+                    _response.StatusCode = HttpStatusCode.NotFound;
+                    return NotFound(_response);
+                }
+
+				await _dbDestination.Remove(destination);
+
+                _response.StatusCode = HttpStatusCode.NoContent;
+                _response.IsSuccess = true;
+
+                return Ok(_response);
+            }
+            catch (Exception ex)
+            {
+                _response.IsSuccess = false;
+                _response.ErrorMessages = new List<string>() { ex.ToString() };
+                return _response;
+            }
+        }
 
 		// UPDATE A DESTINATION - FULL UPDATE(NOT A PATCH)
 		[HttpPut("{id:int}", Name ="UpdateDestination")]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
-        public async Task<IActionResult> UpdateDestination(int id, [FromBody] DestinationUpdateDTO updateDTO)
+        public async Task<ActionResult<APIResponse>> UpdateDestination(int id, [FromBody] DestinationUpdateDTO updateDTO)
 		{
-			if(updateDTO == null || id != updateDTO.Id)
-			{
-				return BadRequest();
-			}
+            try
+            {
+                if (updateDTO == null || id != updateDTO.Id)
+                {
+                    _response.StatusCode = HttpStatusCode.BadRequest;
 
+                    return BadRequest(_response);
+                }
+                var model = _mapper.Map<Destination>(updateDTO);
 
-			var model = _mapper.Map<Destination>(updateDTO);
+                await _dbDestination.Update(model);
+            
+                _response.StatusCode = HttpStatusCode.NoContent;
+                _response.IsSuccess = true;
 
-			_db.Destinations.Update(model);
-			await _db.SaveChangesAsync();
-
-
-            return NoContent();
+                return Ok(_response);
+            }
+            catch (Exception ex)
+            {
+                _response.IsSuccess = false;
+                _response.ErrorMessages = new List<string>() { ex.ToString() };
+                return _response;
+            }
         }
 
 
@@ -181,34 +246,3 @@ namespace cr2Project.Controllers
     }
 }
 
-
-
-//[Route("api/TripDestinationsAPI")]
-//// UPDATE A DESTINATION - FULL UPDATE(NOT A PATCH)
-
-//[HttpGet("{tripId:int}/destinations/")]
-//public async Task<IActionResult> GetTripDestinations(int tripId)
-
-//_db.Trips.Include( x => x.Destinations).Find(id).Destinations
-
-
-
-//[HttpPut("{tripId:int}/destinations/{destId:int}", Name = "AddDestinationsToTrip")]
-//[ProducesResponseType(StatusCodes.Status400BadRequest)]
-//[ProducesResponseType(StatusCodes.Status204NoContent)]
-//public async Task<IActionResult> UpdateDestination(int id, [FromBody] DestinationUpdateDTO updateDTO)
-//{
-//    if (updateDTO == null || id != updateDTO.Id)
-//    {
-//        return BadRequest();
-//    }
-
-
-//    var model = _mapper.Map<Destination>(updateDTO);
-
-//    _db.Destinations.Update(model);
-//    await _db.SaveChangesAsync();
-
-
-//    return NoContent();
-//}

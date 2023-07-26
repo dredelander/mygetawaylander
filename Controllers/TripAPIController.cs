@@ -142,12 +142,15 @@ namespace cr2Project.Controllers
             {
                 if (id == 0)
                 {
-                    return BadRequest();
+                    _response.StatusCode = HttpStatusCode.BadRequest;
+
+                    return BadRequest(_response);
                 }
                 var trip = await _dbTrip.Get(d => d.Id == id);
                 if (trip == null)
                 {
-                    return NotFound();
+                    _response.StatusCode = HttpStatusCode.NotFound;
+                    return NotFound(_response);
                 }
 
                 await _dbTrip.Remove(trip);

@@ -9,10 +9,10 @@ namespace cr2Project.Models.Dto
 
         public int NumberOfGuest { get; set; }
 
-        public int NumberOfDestinations { get
-            {
-                return Destinations?.Count() ?? 0;
-            } }
+        //public int NumberOfDestinations { get
+            //{
+            //    return Destinations?.Count() ?? 0;
+            //} }
 
         public ICollection<Destination>? Destinations { get; set; } 
 
