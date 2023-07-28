@@ -32,11 +32,22 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+}
+
+// Migrate latest database changes during startup
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider
+        .GetRequiredService<ApplicationDBContext>();
+
+    // Here is the migration executed
+    dbContext.Database.Migrate();
 }
 
 app.UseHttpsRedirection();

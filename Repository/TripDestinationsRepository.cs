@@ -14,6 +14,7 @@ namespace cr2Project.Repository
         public TripDestinationsRepository(ApplicationDBContext db)
 		{
             _db = db;
+            //_db.Destinations.Include(d => d.Trips).ToList();
         }
 
         public async Task AddDestination(Expression<Func<Trip, bool>> filterTrip = null, Expression<Func<Destination, bool>> filterDest = null)

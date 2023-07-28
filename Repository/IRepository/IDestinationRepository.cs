@@ -7,9 +7,9 @@ namespace cr2Project.Repository.IRepository
 	public interface IDestinationRepository
 	{
 
-        Task<List<Destination>> GetAll(Expression<Func<Destination, bool>> filter = null);
+        Task<List<Destination>> GetAll(Expression<Func<Destination, bool>> filter = null, string? includeTrips = null);
 
-        Task<Destination> Get(Expression<Func<Destination, bool >> filter = null, bool tracked = true);
+        Task<Destination> Get(Expression<Func<Destination, bool >> filter = null, bool tracked = true, string? includeTrips = null);
 
         Task Create(Destination entity);
 

@@ -23,13 +23,15 @@ namespace cr2Project.Controllers
         private readonly ApplicationDBContext _db;
         private readonly ITripDestinationsRepository _dbTripDest;
         protected APIResponse _response;
+        private readonly IMapper _mapper;
 
-        public TripDestinationsAPIController( ApplicationDBContext db, ITripDestinationsRepository dbTripDest, ILogger<TripDestinationsAPIController> logger)
+        public TripDestinationsAPIController( ApplicationDBContext db, ITripDestinationsRepository dbTripDest, ILogger<TripDestinationsAPIController> logger, IMapper mapper)
         {
             _db = db;
             _logger = logger;
             _dbTripDest = dbTripDest;
             _response = new();
+            _mapper = mapper;
         }
 
         //GET ALL DESTINATIONS FOR A TRIP
@@ -41,7 +43,13 @@ namespace cr2Project.Controllers
                 _logger.LogInformation("Getting all destinations");
 
                 IEnumerable<Destination> tripDestList = await _dbTripDest.GetTripDestinations(x => x.Id == tripId);
-                _response.Response = tripDestList;
+
+                
+
+                var destinations = _mapper.Map<List<DestinationDTO>>(tripDestList);
+               
+
+                _response.Response = destinations;
                 _response.StatusCode = HttpStatusCode.OK;
                 return Ok(_response);
             } catch (Exception ex)

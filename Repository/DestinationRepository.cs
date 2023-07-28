@@ -15,6 +15,7 @@ namespace cr2Project.Repository
         public DestinationRepository(ApplicationDBContext db)
         {
             _db = db;
+            //_db.Destinations.Include(d => d.Trips).ToList();
         }
 
 
@@ -24,7 +25,7 @@ namespace cr2Project.Repository
             await Save();
         }
 
-        public async Task<Destination> Get(Expression<Func<Destination, bool>> filter = null, bool tracked = true)
+        public async Task<Destination> Get(Expression<Func<Destination, bool>> filter = null, bool tracked = true, string? includeTrips = null)
         {
             IQueryable<Destination> query = _db.Destinations;
 
@@ -38,16 +39,32 @@ namespace cr2Project.Repository
                 query = query.Where(filter);
             }
 
+            if(includeTrips != null)
+            {
+                foreach(var tripProp in includeTrips.Split(new char[] {','}, StringSplitOptions.RemoveEmptyEntries))
+                {
+                    query.Include(tripProp);
+                }
+            }
+
             return await query.FirstOrDefaultAsync();
         }
 
-        public async Task<List<Destination>> GetAll(Expression<Func<Destination, bool>> filter = null)
+        public async Task<List<Destination>> GetAll(Expression<Func<Destination, bool>> filter = null, string? includeTrips = null)
         {
             IQueryable<Destination> query = _db.Destinations;
 
             if (filter != null)
             {
                 query = query.Where(filter);
+            }
+
+            if (includeTrips != null)
+            {
+                foreach (var tripProp in includeTrips.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
+                {
+                    query.Include(tripProp);
+                }
             }
 
             return await query.ToListAsync();
